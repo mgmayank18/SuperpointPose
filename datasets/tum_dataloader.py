@@ -1,15 +1,17 @@
-from associate import *
+from .associate import *
 import os
 from torch.utils.data import Dataset
 import cv2
-
+import numpy as np
+from pyquaternion import Quaternion
+from utils import get_left_in_right_pose_quat
 class TUMDataloader(Dataset):
     def __init__(self, sequences, root_dir):
         self.root_dir = root_dir
         self.sequences = []
         self.len = []
         self.sorted_keys_list = []
-
+        
         for sequence_name in sequences:
             folder = os.path.join(root_dir, sequence_name)
             rgb_path = os.path.join(folder, 'rgb.txt')
@@ -35,11 +37,16 @@ class TUMDataloader(Dataset):
             path = os.path.join(self.root_dir, folder, rgbd, filename+'.png')
             cell = 8
             input_image = cv2.imread(path)
-            input_image = cv2.resize(input_image, (240, 320),interpolation=cv2.INTER_AREA)
+            input_image = cv2.resize(input_image, (640, 480),interpolation=cv2.INTER_AREA)
             H, W = input_image.shape[0], input_image.shape[1]
             input_image = cv2.cvtColor(input_image, cv2.COLOR_RGB2GRAY)
             input_image = input_image.astype('float32') / 255.0
             return input_image
+
+    def get_intrinsics(self, int):
+        K1 = np.array([[]])
+        K2 = np.array([[]])
+        K3 = np.array([[]])
     
     def __getitem__(self, idx):
         i=0
@@ -60,12 +67,18 @@ class TUMDataloader(Dataset):
         d2 = self._read_image(folder, "%.6f"%depth2, 'depth')
         pose1 = gt_data[gt_matches[key_1]]
         pose2 = gt_data[gt_matches[key_2]]
-        return im1, im2, d1, d2, pose1, pose2
+
+        R, t = get_left_in_right_pose_quat(np.array(pose2[3:]), np.expand_dims(np.array(pose2[:3]),0), np.array(pose1[3:]), np.expand_dims(np.array(pose1[:3]),0))
+        
+        rel_pose = np.hstack((R,t))
+        print(R, t, rel_pose)
+        
+        return im1, im2, d1, d2, rel_pose
 
 if __name__ == "__main__":
     train_seqs = ['rgbd_dataset_freiburg1_desk',
                     'rgbd_dataset_freiburg1_room',
                     'rgbd_dataset_freiburg3_long_office_household']
     loader = TUMDataloader(train_seqs,'/zfsauton2/home/mayankgu/Geom/PyTorch/SuperPose/datasets/TUM_RGBD/')
-    a,b,c,d,e,f = loader.__getitem__(5)
-    print(e,f) #RETURNS tx, ty, tz, qx, qy, qz, qw
+    a,b,c,d,e = loader.__getitem__(5)
+    print(e) #RETURNS tx, ty, tz, qx, qy, qz, qw
