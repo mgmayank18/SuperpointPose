@@ -3,6 +3,7 @@ import torch.nn.functional as F
 import torch
 import cv2
 import numpy as np
+from datasets.tum_dataloader import TUMDataloader
 
 def read_image(impath, img_size):
     """ Read image as grayscale and resize to img_size.
@@ -52,7 +53,7 @@ class PoseEstimation():
         for param in self.trunk.parameters():
             param.requires_grad=freeze
 
-    def point_decorder(self, semi, H, W):
+    def point_decoder(self, semi, H, W):
         """ Converts network output to keypoint heatmap.
         """
     
@@ -69,20 +70,17 @@ class PoseEstimation():
         #heatmap = heatmap.reshape(Hc*self.cell, Wc*self.cell)
         heatmap = heatmap.contiguous().view(Hc*self.cell, Wc*self.cell)
         
-        
-        xs, ys = torch.where(heatmap >= self.conf_thresh)
-        
+        '''
+        xs, ys = torch.where(heatmap >= self.conf_thresh) #Location of keypoints
         pts = torch.zeros(3, len(xs))
         pts[0, :] = ys
         pts[1, :] = xs
         pts[2, :] = heatmap[xs, ys]
-        
-        #import pdb; pdb.set_trace()
-        
+        '''
         
         return heatmap
         
-    def point_decorder_np(self, semi, H, W):
+    def point_decoder_np(self, semi, H, W):
         semi = semi.data.cpu().numpy().squeeze()
         # --- Process points.
         dense = np.exp(semi) # Softmax.
@@ -124,9 +122,9 @@ class PoseEstimation():
         semi2, desc2 = self.trunk(inp2)
         #import pdb; pdb.set_trace()
        
-        heatmap1 = self.point_decorder(semi1, H, W)
-        heatmap2 = self.point_decorder(semi2, H, W)
-
+        heatmap1 = self.point_decoder(semi1, H, W)
+        heatmap2 = self.point_decoder(semi2, H, W)
+        return heatmap1, heatmap2
         # Loss Function.
         # Consecutive Frames
         # Step 1
@@ -136,21 +134,40 @@ class PoseEstimation():
         # Step 2
         # Feedback Loop
         #GT - Relative Pose between rgb1 and rgb2
+    #def project_hm(self, hm, R, t):
+
+def overlap_hm(img, hm):
+    hm = hm.data.cpu().numpy().squeeze()
+    fin = cv2.addWeighted(hm, 0.5, img, 0.5, 0)
+    return fin
 
 if __name__ == "__main__":
-    H = 120
-    W = 160
-    path1 = 'icl_snippet/250.png'
-    path2 = 'icl_snippet/254.png'
-    gray1 = read_image(path1, (H, W))
-    gray2 = read_image(path2, (H, W))
-    
+    train_seqs = ['rgbd_dataset_freiburg1_desk',
+                    'rgbd_dataset_freiburg1_room',
+                    'rgbd_dataset_freiburg3_long_office_household']
+    loader = TUMDataloader(train_seqs,'/zfsauton2/home/mayankgu/Geom/PyTorch/SuperPose/datasets/TUM_RGBD/')
+    #H = 120
+    #W = 160
+    #path1 = 'icl_snippet/250.png'
+    #path2 = 'icl_snippet/254.png'
+    #gray1 = read_image(path1, (H, W))
+    #gray2 = read_image(path2, (H, W))
+    gray1, gray2, depth1, depth2, rel_pose = loader.__getitem__(5)
 
     model = PoseEstimation()
-    model.forward(gray1, gray2)
-    
+    hm1, hm2 = model.forward(gray1, gray2)
+    print(hm1.shape, hm2.shape)
 
+    from torchvision.utils import save_image
 
-
+    save_image(hm1, 'hm1.png')
+    save_image(hm2, 'hm2.png')
+    save_image(torch.tensor(gray1), 'gray1.png')
+    save_image(torch.tensor(gray2), 'gray2.png')
+    save_image(torch.tensor(overlap_hm(gray1, hm1)), 'overlap1.png')
+    save_image(torch.tensor(overlap_hm(gray2, hm2)), 'overlap2.png')
+    save_image(torch.tensor(overlap_hm(hm1.data.cpu().numpy().squeeze(), hm2)), 'hm_over_hm.png')
+    from unproject_reproject import unprojection_reprojection
+    unprojection_reprojection(gray1, gray2, depth1, depth2, rel_pose)
 
         
