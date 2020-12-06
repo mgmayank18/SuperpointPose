@@ -22,10 +22,10 @@ def read_image(impath, img_size):
     grayim = (grayim.astype('float32') / 255.)
     return grayim
 
-def verify_heatmap(heatmap, heatmap1_np):
-    heatmap1 = heatmap1.data.cpu().numpy()
+def verify_heatmap(heatmap, heatmap_np):
+    heatmap = heatmap.data.cpu().numpy()
     eps = 1e-5
-    diff = np.abs(heatmap1_np - heatmap1)
+    diff = np.abs(heatmap_np - heatmap)
     diff = np.where(diff > eps, 1, 0)
     print(np.count_nonzero(diff))
 
@@ -67,18 +67,15 @@ class PoseEstimation():
         heatmap = heatmap.permute(0,2,1,3)
         #print(heatmap.size())
         #import pdb; pdb.set_trace()
-        heatmap = heatmap.reshape(Hc*self.cell, Wc*self.cell)
+        #heatmap = heatmap.reshape(Hc*self.cell, Wc*self.cell)
+        heatmap = heatmap.contiguous().view(Hc*self.cell, Wc*self.cell)
         
-        
-        xs, ys = torch.where(heatmap >= self.conf_thresh) #Location of keypoints
-        #heatmap = torch.gt(heatmap, self.conf_thresh) #binarized heatmap
         '''
-        ptr = torch.zeros(3, len(xs))
+        xs, ys = torch.where(heatmap >= self.conf_thresh) #Location of keypoints
+        pts = torch.zeros(3, len(xs))
         pts[0, :] = ys
         pts[1, :] = xs
         pts[2, :] = heatmap[xs, ys]
-        
-        import pdb; pdb.set_trace()
         '''
         
         return heatmap
