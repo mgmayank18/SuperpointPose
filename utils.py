@@ -25,8 +25,8 @@ def get_left_in_right_pose(left_R, left_T, right_R, right_T):
     # relative pose: R (3x3) and T (3x1)
 
 
-    left_pose = get_camera_pose(left_R, left_T)
-    right_pose = get_camera_pose(right_R, right_T)
+    left_pose = get_camera_pose(left_R, left_T).astype(np.float)
+    right_pose = get_camera_pose(right_R, right_T).astype(np.float)
 
     left2right = np.dot(inv(right_pose), left_pose)
 
@@ -43,8 +43,8 @@ def get_left_in_right_pose_quat(left_q, left_T, right_q, right_T):
     # Return: numpy arrays
     # relative pose: R (3x3) and T (3x1)
 
-    left_R = Rotation.from_quat(left_q).as_matrix()
-    right_R = Rotation.from_quat(right_q).as_matrix()
+    left_R = Rotation.from_quat(left_q).as_matrix().astype(np.float)
+    right_R = Rotation.from_quat(right_q).as_matrix().astype(np.float)
 
     left_in_right_R, left_in_right_T = get_left_in_right_pose(left_R, left_T, right_R, right_T)
 

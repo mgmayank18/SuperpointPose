@@ -70,8 +70,7 @@ class TUMDataloader(Dataset):
 
         R, t = get_left_in_right_pose_quat(np.array(pose2[3:]), np.expand_dims(np.array(pose2[:3]),0), np.array(pose1[3:]), np.expand_dims(np.array(pose1[:3]),0))
         
-        rel_pose = np.hstack((R,t))
-        print(R, t, rel_pose)
+        rel_pose = np.hstack((R,np.expand_dims(t,1)))
         
         return im1, im2, d1, d2, rel_pose
 
