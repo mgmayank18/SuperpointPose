@@ -25,13 +25,11 @@ def get_left_in_right_pose(left_R, left_T, right_R, right_T):
     # relative pose: R (3x3) and T (3x1)
 
 
-    left_pose = get_camera_pose(left_R, left_T).astype(np.float)
-    right_pose = get_camera_pose(right_R, right_T).astype(np.float)
+    #left_pose = get_camera_pose(left_R, left_T).astype(np.float)
+    #right_pose = get_camera_pose(right_R, right_T).astype(np.float)
 
-    left2right = np.dot(inv(right_pose), left_pose)
-
-    left_in_right_T = left2right[0:3, 3]
-    left_in_right_R = left2right[0:3, 0:3]
+    left_in_right_R = np.dot(inv(right_R), left_R)
+    left_in_right_T = left_T - right_T
 
     return left_in_right_R, left_in_right_T
 
@@ -75,11 +73,12 @@ if __name__ == "__main__":
 
     left_q = left_rotation.as_quat()
     right_q = right_rotation.as_quat()
-    R_q, T_q = get_left_in_right_pose_quat(left_q, left_T, right_q, right_T)
+    R_q, T_q = get_left_in_right_pose_quat(right_q, right_T, left_q, left_T)
 
     print('Answers for input as quanterion matrix')
     print(R_q)
     print(T_q)
+    #print(inv(R))
 
 
 

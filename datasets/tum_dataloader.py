@@ -3,7 +3,6 @@ import os
 from torch.utils.data import Dataset
 import cv2
 import numpy as np
-from pyquaternion import Quaternion
 from utils import get_left_in_right_pose_quat
 class TUMDataloader(Dataset):
     def __init__(self, sequences, root_dir):
