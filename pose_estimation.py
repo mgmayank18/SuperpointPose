@@ -102,7 +102,6 @@ class PoseEstimation():
         div = torch.unsqueeze(div, 0)
         desc /= div
 
-        
         #desc2 = self.get_descriptor_decoder_np(coarse_desc, H, W, pts2)
         #verify_buffer(desc, desc2)
         #import pdb; pdb.set_trace()
