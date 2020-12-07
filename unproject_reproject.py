@@ -84,18 +84,22 @@ def unproject_loss(pts, hm1, hm2, depth1, depth2, rel_pose, device):
     print(min(u_1), max(u_1))
     print(min(v_1), max(v_1))
     ys_GT, xs_GT = torch.where(hm2 >= 0.015)
-    print(min(xs_GT), max(xs_GT))
-    print(min(ys_GT), max(ys_GT))
+    #print(min(xs_GT), max(xs_GT))
+    #print(min(ys_GT), max(ys_GT))
     mask = mask_1 * mask_2 * mask_3 * mask_4
 
     orig_xs = xs[mask]
     orig_ys = ys[mask]
-
-
+    
     orig_hms = hm1[orig_ys, orig_xs]
     targets = hm2[torch.round(v_1[mask]).type(orig_xs.dtype), torch.round(u_1[mask]).type(orig_xs.dtype)] # <- This line takes time, for some reason.
     print(orig_hms, targets)
 
+    canvas = torch.tensor(hm2.shape)
+    canvas[torch.round(v_1[mask]).type(orig_xs.dtype), torch.round(u_1[mask]).type(orig_xs.dtype)] = targets
+    from torchvision.utils import save_image
+    save_image(canvas, 'rotatedhm.png')
+    
     #Loss(orig_hms, targets)
     
 

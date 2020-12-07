@@ -205,8 +205,8 @@ if __name__ == "__main__":
     train_seqs = ['rgbd_dataset_freiburg1_desk',
                     'rgbd_dataset_freiburg1_room',
                     'rgbd_dataset_freiburg3_long_office_household']
-    #loader = TUMDataloader(train_seqs,'/zfsauton2/home/mayankgu/Geom/PyTorch/SuperPose/datasets/TUM_RGBD/')
-    loader = TUMDataloader(train_seqs,'/usr0/yi-tinglin/SuperpointPose/datasets/TUM_RGBD/')
+    loader = TUMDataloader(train_seqs,'/zfsauton2/home/mayankgu/Geom/PyTorch/SuperPose/datasets/TUM_RGBD/')
+    #loader = TUMDataloader(train_seqs,'/usr0/yi-tinglin/SuperpointPose/datasets/TUM_RGBD/')
     
     #H = 120
     #W = 160
@@ -221,7 +221,6 @@ if __name__ == "__main__":
     #print(hm1.shape, hm2.shape)
 
     from torchvision.utils import save_image
-
     save_image(hm1, 'hm1.png')
     save_image(hm2, 'hm2.png')
     save_image(torch.tensor(gray1), 'gray1.png')
