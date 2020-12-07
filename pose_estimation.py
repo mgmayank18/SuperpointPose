@@ -127,11 +127,11 @@ class PoseEstimation():
         heatmap = heatmap.contiguous().view(Hc*self.cell, Wc*self.cell)
         
         
-        xs, ys = torch.where(heatmap >= self.conf_thresh) #Location of keypoints
+        ys, xs = torch.where(heatmap >= self.conf_thresh) #Location of keypoints
         pts = torch.zeros(3, len(xs))
         pts[0, :] = ys
         pts[1, :] = xs
-        pts[2, :] = heatmap[xs, ys]
+        pts[2, :] = heatmap[ys, xs]
     
         
         return heatmap, pts
@@ -161,7 +161,6 @@ class PoseEstimation():
         return torch.gt(hm, self.conf_thresh)
 
     def forward(self, gray_1, gray_2, depth_1, depth_2, rel_pose):
-        
         H, W = gray_1.shape[0], gray_1.shape[1]
 
         inp1 = gray1.copy()
@@ -181,7 +180,6 @@ class PoseEstimation():
         heatmap1, pts1 = self.point_decoder(semi1, H, W)
         #key_desc1 = self.get_descriptor_decoder(desc1, H, W, pts1)
         heatmap2, pts2 = self.point_decoder(semi2, H, W)
-
         unproject_loss(pts1, heatmap1, heatmap2, depth1, depth2, rel_pose, self.device)
 
         return heatmap1, heatmap2
@@ -205,8 +203,8 @@ if __name__ == "__main__":
     train_seqs = ['rgbd_dataset_freiburg1_desk',
                     'rgbd_dataset_freiburg1_room',
                     'rgbd_dataset_freiburg3_long_office_household']
-    #loader = TUMDataloader(train_seqs,'/zfsauton2/home/mayankgu/Geom/PyTorch/SuperPose/datasets/TUM_RGBD/')
-    loader = TUMDataloader(train_seqs,'/usr0/yi-tinglin/SuperpointPose/datasets/TUM_RGBD/')
+    loader = TUMDataloader(train_seqs,'/zfsauton2/home/mayankgu/Geom/PyTorch/SuperPose/datasets/TUM_RGBD/')
+    #loader = TUMDataloader(train_seqs,'/usr0/yi-tinglin/SuperpointPose/datasets/TUM_RGBD/')
     
     #H = 120
     #W = 160

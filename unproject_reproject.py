@@ -58,7 +58,8 @@ def unproject_loss(pts, hm1, hm2, depth1, depth2, rel_pose, device):
     rel_pose = torch.from_numpy(rel_pose).to(device)
     #import pdb; pdb.set_trace()
     Z_ = torch.mul(hm1, depth1)
-    Z = Z_[xs, ys]
+    Z = Z_[ys, xs]
+    print(max(xs), max(ys))
     X = (xs - centerX) * Z / focalLength
     Y = (ys - centerY) * Z / focalLength
     vec_org = torch.stack((X,Y,Z, torch.ones(Z.size()).to(device)), dim=1).type(torch.float64) #May need to change dim to make it 4XN
@@ -72,17 +73,17 @@ def unproject_loss(pts, hm1, hm2, depth1, depth2, rel_pose, device):
     u_1 = X1 * focalLength / (Z1 + 0.0001) + centerX
     v_1 = Y1 * focalLength / (Z1 + 0.0001) + centerY
 
-    mask_1 = (u_1 > 640)
-    mask_2 = (v_1 > 480)
-    mask_3 = (u_1 < 0)
-    mask_4 = (v_1 < 0)
+    mask_1 = (u_1 < 640)
+    mask_2 = (v_1 < 480)
+    mask_3 = (u_1 >= 0)
+    mask_4 = (v_1 >= 0)
     mask = mask_1 * mask_2 * mask_3 * mask_4
 
     orig_xs = xs[mask]
     orig_ys = ys[mask]
 
-    orig_hms = hm1[orig_xs, orig_ys]
-    targets = hm2[torch.round(u_1[mask]).type(orig_xs.dtype), torch.round(v_1[mask]).type(orig_xs.dtype)] # <- This line takes time, for some reason.
+    orig_hms = hm1[orig_ys, orig_xs]
+    targets = hm2[torch.round(v_1[mask]).type(orig_xs.dtype), torch.round(u_1[mask]).type(orig_xs.dtype)] # <- This line takes time, for some reason.
 
     #Loss(orig_hms, targets)
     
