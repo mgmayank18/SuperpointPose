@@ -61,12 +61,12 @@ def unproject_loss(pts, hm1, hm2, depth1, depth2, rel_pose, device):
     Z_ = torch.mul(hm1, depth1)
     Z = Z_[xs, ys]
     X = (xs - centerX) * Z / focalLength
-    Y = (ys - centerY) * Z / focalLenugth
+    Y = (ys - centerY) * Z / focalLength
     vec_org = torch.stack((X,Y,Z, torch.ones(Z.size()).to(device)), dim=1).type(torch.float64) #May need to change dim to make it 4XN
     vec_org = vec_org.permute(1,0)
-    import pdb; pdb.set_trace()
-    vec_transf = torch.matmul(rel_pose, vec_org)
-
+    #import pdb; pdb.set_trace()
+    vec_transf = torch.mm(rel_pose, vec_org)
+    
     X1, Y1, Z1 = vec_transf[0,:], vec_transf[1,:], vec_transf[2,:]
 
     # Need to enforce check that Z1 is not 0
@@ -81,6 +81,9 @@ def unproject_loss(pts, hm1, hm2, depth1, depth2, rel_pose, device):
 
     orig_xs = xs[mask]
     orig_ys = ys[mask]
+
+    targ_xs = u_1[mask]
+    targ_ys = v_1[mask]
 
     orig_hms = hm1[orig_xs, orig_ys]
     targets = hm2[int(u_1[mask]), int(v_1[mask])] # <- Not sure if int() works on tensors.
