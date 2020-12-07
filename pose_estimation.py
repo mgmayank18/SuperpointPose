@@ -22,12 +22,27 @@ def read_image(impath, img_size):
     grayim = (grayim.astype('float32') / 255.)
     return grayim
 
-def verify_heatmap(heatmap, heatmap_np):
-    heatmap = heatmap.data.cpu().numpy()
+def verify_buffer(buffer, buffer_np):
+    buffer = buffer.data.cpu().numpy()
+    if(buffer.shape != buffer_np.shape):
+        print("shape does not match")
     eps = 1e-5
-    diff = np.abs(heatmap_np - heatmap)
+    diff = np.abs(buffer_np - buffer)
+    #print(diff)
     diff = np.where(diff > eps, 1, 0)
+
     print(np.count_nonzero(diff))
+
+def verify_buffer_torch(buffer1, buffer2):
+    #buffer = buffer.data.cpu().numpy()
+    if(buffer1.shape != buffer2.shape):
+        print("shape does not match")
+    eps = 1e-5
+    diff = torch.abs(buffer1 - buffer2)
+    #print(diff)
+    diff = torch.where(diff > eps, 1, 0)
+    print(torch.count_nonzero(diff))
+
 
 class PoseEstimation():
     def __init__(self):
@@ -53,6 +68,50 @@ class PoseEstimation():
         for param in self.trunk.parameters():
             param.requires_grad=freeze
 
+    def get_descriptor_decoder_np(self, coarse_desc, H, W, pts):
+        D = coarse_desc.shape[1]
+        samp_pts = pts[:2, :]
+        samp_pts[0, :] = (samp_pts[0, :] / (float(W)/2.)) - 1.
+        samp_pts[1, :] = (samp_pts[1, :] / (float(H)/2.)) - 1.
+        samp_pts = samp_pts.transpose(0, 1).contiguous()
+        samp_pts = samp_pts.view(1, 1, -1, 2)
+        samp_pts = samp_pts.float()
+        samp_pts = samp_pts.cuda()
+        desc = torch.nn.functional.grid_sample(coarse_desc, samp_pts)
+        desc = desc.data.cpu().numpy().reshape(D, -1)
+        div = np.linalg.norm(desc, axis=0)
+        desc /= div[np.newaxis, :]
+       
+        return desc
+
+    def get_descriptor_decoder(self, coarse_desc, H, W, pts):
+        """ Get the final desc
+        """
+        D = coarse_desc.shape[1]
+        #pts2 = torch.clone(pts)
+        samp_pts = pts[:2, :]
+        samp_pts[0, :] = (samp_pts[0, :] / (float(W)/2.)) - 1.
+        samp_pts[1, :] = (samp_pts[1, :] / (float(H)/2.)) - 1.
+        samp_pts = samp_pts.transpose(0, 1).contiguous()
+        samp_pts = samp_pts.view(1, 1, -1, 2)
+        samp_pts = samp_pts.float()
+        samp_pts = samp_pts.cuda()
+        desc = torch.nn.functional.grid_sample(coarse_desc, samp_pts)
+        desc = desc.view(D, -1)
+        div = torch.linalg.norm(desc, dim=0)
+        div = torch.unsqueeze(div, 0)
+        desc /= div
+
+        
+        #desc2 = self.get_descriptor_decoder_np(coarse_desc, H, W, pts2)
+        #verify_buffer(desc, desc2)
+        #import pdb; pdb.set_trace()
+
+        return desc
+    def get_key_point(self, heatmap):
+        xs, ys = torch.where(heatmap >= self.conf_thresh) #Location of keypoints
+
+
     def point_decoder(self, semi, H, W):
         """ Converts network output to keypoint heatmap.
         """
@@ -70,15 +129,15 @@ class PoseEstimation():
         #heatmap = heatmap.reshape(Hc*self.cell, Wc*self.cell)
         heatmap = heatmap.contiguous().view(Hc*self.cell, Wc*self.cell)
         
-        '''
+        
         xs, ys = torch.where(heatmap >= self.conf_thresh) #Location of keypoints
         pts = torch.zeros(3, len(xs))
         pts[0, :] = ys
         pts[1, :] = xs
         pts[2, :] = heatmap[xs, ys]
-        '''
+    
         
-        return heatmap
+        return heatmap, pts
         
     def point_decoder_np(self, semi, H, W):
         semi = semi.data.cpu().numpy().squeeze()
@@ -122,8 +181,11 @@ class PoseEstimation():
         semi2, desc2 = self.trunk(inp2)
         #import pdb; pdb.set_trace()
        
-        heatmap1 = self.point_decoder(semi1, H, W)
-        heatmap2 = self.point_decoder(semi2, H, W)
+        heatmap1, pts1 = self.point_decoder(semi1, H, W)
+        key_desc1 = self.get_descriptor_decoder(desc1, H, W, pts1)
+        heatmap2, pts2 = self.point_decoder(semi2, H, W)
+
+
         return heatmap1, heatmap2
         # Loss Function.
         # Consecutive Frames
@@ -145,7 +207,9 @@ if __name__ == "__main__":
     train_seqs = ['rgbd_dataset_freiburg1_desk',
                     'rgbd_dataset_freiburg1_room',
                     'rgbd_dataset_freiburg3_long_office_household']
-    loader = TUMDataloader(train_seqs,'/zfsauton2/home/mayankgu/Geom/PyTorch/SuperPose/datasets/TUM_RGBD/')
+    #loader = TUMDataloader(train_seqs,'/zfsauton2/home/mayankgu/Geom/PyTorch/SuperPose/datasets/TUM_RGBD/')
+    loader = TUMDataloader(train_seqs,'/usr0/yi-tinglin/SuperpointPose/datasets/TUM_RGBD/')
+    
     #H = 120
     #W = 160
     #path1 = 'icl_snippet/250.png'
