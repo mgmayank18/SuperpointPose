@@ -29,6 +29,7 @@ def get_left_in_right_pose(left_R, left_T, right_R, right_T):
     #right_pose = get_camera_pose(right_R, right_T).astype(np.float)
 
     left_in_right_R = np.dot(inv(right_R), left_R)
+    #import pdb; pdb.set_trace()
     left_in_right_T = left_T - right_T
 
     return left_in_right_R, left_in_right_T
@@ -78,7 +79,7 @@ if __name__ == "__main__":
     print('Answers for input as quanterion matrix')
     print(R_q)
     print(T_q)
-    #print(inv(R))
+    print(inv(R))
 
 
 

@@ -67,7 +67,7 @@ class TUMDataloader(Dataset):
         pose1 = gt_data[gt_matches[key_1]]
         pose2 = gt_data[gt_matches[key_2]]
 
-        R, t = get_left_in_right_pose_quat(np.array(pose2[3:]), np.expand_dims(np.array(pose2[:3]),0), np.array(pose1[3:]), np.expand_dims(np.array(pose1[:3]),0))
+        R, t = get_left_in_right_pose_quat(np.array(pose2[3:]).astype(float), np.expand_dims(np.array(pose2[:3]),0).astype(float), np.array(pose1[3:]).astype(float), np.expand_dims(np.array(pose1[:3]),0).astype(float))
         
         rel_pose = np.hstack((R,np.expand_dims(t,1)))
         

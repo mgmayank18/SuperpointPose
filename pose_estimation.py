@@ -5,6 +5,7 @@ import cv2
 import numpy as np
 from datasets.tum_dataloader import TUMDataloader
 from unproject_reproject import unproject_loss
+import copy
 
 def read_image(impath, img_size):
     """ Read image as grayscale and resize to img_size.
@@ -127,11 +128,11 @@ class PoseEstimation():
         heatmap = heatmap.contiguous().view(Hc*self.cell, Wc*self.cell)
         
         
-        xs, ys = torch.where(heatmap >= self.conf_thresh) #Location of keypoints
+        ys, xs = torch.where(heatmap >= self.conf_thresh) #Location of keypoints
         pts = torch.zeros(3, len(xs))
         pts[0, :] = ys
         pts[1, :] = xs
-        pts[2, :] = heatmap[xs, ys]
+        pts[2, :] = heatmap[ys, xs]
     
         
         return heatmap, pts
@@ -161,7 +162,6 @@ class PoseEstimation():
         return torch.gt(hm, self.conf_thresh)
 
     def forward(self, gray_1, gray_2, depth_1, depth_2, rel_pose):
-        
         H, W = gray_1.shape[0], gray_1.shape[1]
 
         inp1 = gray1.copy()
@@ -181,9 +181,9 @@ class PoseEstimation():
         heatmap1, pts1 = self.point_decoder(semi1, H, W)
         #key_desc1 = self.get_descriptor_decoder(desc1, H, W, pts1)
         heatmap2, pts2 = self.point_decoder(semi2, H, W)
-
+        rel_pose_I = np.array([[1,0,0,0],[0,1,0,0],[0,0,1,0]])
         unproject_loss(pts1, heatmap1, heatmap2, depth1, depth2, rel_pose, self.device)
-
+        #unproject_loss(pts1, heatmap1, torch.clone(heatmap1), depth1, depth1, rel_pose_I, self.device)
         return heatmap1, heatmap2
         # Loss Function.
         # Consecutive Frames
@@ -230,6 +230,8 @@ if __name__ == "__main__":
     save_image(torch.tensor(overlap_hm(gray2, hm2)), 'overlap2.png')
     save_image(torch.tensor(overlap_hm(hm1.data.cpu().numpy().squeeze(), hm2)), 'hm_over_hm.png')
     from unproject_reproject import unprojection_reprojection
-    unprojection_reprojection(gray1, gray2, depth1, depth2, rel_pose)
+    #unprojection_reprojection(gray1, gray2, depth1, depth2, rel_pose)
+    #
+    #unproject_loss(gray1, gray1, depth1, depth1, rel_pose_I)
 
         
