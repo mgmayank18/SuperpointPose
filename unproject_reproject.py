@@ -1,6 +1,8 @@
 from scipy.spatial.transform import Rotation
 import numpy as np
 from datasets.tum_dataloader import TUMDataloader
+import torch
+
 
 def invertRT(rel_pose):
     R = rel_pose[:3,:3]
@@ -44,19 +46,25 @@ def unprojection_reprojection(img1, img2, depth1, depth2, rel_pose):
 
 #def visualize_img
 
-def unproject_loss(xs, ys, hm1, hm2, depth1, depth2, rel_pose):
+def unproject_loss(pts, hm1, hm2, depth1, depth2, rel_pose, device):
     focalLength = 525.0
     centerX = 319.5
     centerY = 239.5
     scalingFactor = 1.0
 
-    Z_ = hm1 * depth1
+    ys = pts[0, :].type(torch.long).to(device)
+    xs = pts[1, :].type(torch.long).to(device)
+    depth1 = torch.from_numpy(depth1).to(device)
+    rel_pose = torch.from_numpy(rel_pose).to(device)
+
+    #import pdb; pdb.set_trace()
+    Z_ = torch.mul(hm1, depth1)
     Z = Z_[xs, ys]
     X = (xs - centerX) * Z / focalLength
     Y = (ys - centerY) * Z / focalLength
-
-    vec_org = torch.stack((X,Y,Z, torch.ones(Z.size())), dim=1) #May need to change dim to make it 4XN
-
+    vec_org = torch.stack((X,Y,Z, torch.ones(Z.size()).to(device)), dim=1).type(torch.float64) #May need to change dim to make it 4XN
+    vec_org = vec_org.permute(1,0)
+    import pdb; pdb.set_trace()
     vec_transf = torch.matmul(rel_pose, vec_org)
 
     X1, Y1, Z1 = vec_transf[0,:], vec_transf[1,:], vec_transf[2,:]

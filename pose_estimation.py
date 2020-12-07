@@ -4,6 +4,7 @@ import torch
 import cv2
 import numpy as np
 from datasets.tum_dataloader import TUMDataloader
+from unproject_reproject import unproject_loss
 
 def read_image(impath, img_size):
     """ Read image as grayscale and resize to img_size.
@@ -107,9 +108,6 @@ class PoseEstimation():
         #import pdb; pdb.set_trace()
 
         return desc
-    def get_key_point(self, heatmap):
-        xs, ys = torch.where(heatmap >= self.conf_thresh) #Location of keypoints
-
 
     def point_decoder(self, semi, H, W):
         """ Converts network output to keypoint heatmap.
@@ -162,7 +160,7 @@ class PoseEstimation():
     def binarize_heatmap(self, hm): ### If you want to get where the keypoints are in the image, could be used in loss function (?)
         return torch.gt(hm, self.conf_thresh)
 
-    def forward(self, gray_1, gray_2, depth_1=None, depth_2=None):
+    def forward(self, gray_1, gray_2, depth_1, depth_2, rel_pose):
         
         H, W = gray_1.shape[0], gray_1.shape[1]
 
@@ -181,9 +179,10 @@ class PoseEstimation():
         #import pdb; pdb.set_trace()
        
         heatmap1, pts1 = self.point_decoder(semi1, H, W)
-        key_desc1 = self.get_descriptor_decoder(desc1, H, W, pts1)
+        #key_desc1 = self.get_descriptor_decoder(desc1, H, W, pts1)
         heatmap2, pts2 = self.point_decoder(semi2, H, W)
 
+        unproject_loss(pts1, heatmap1, heatmap2, depth1, depth2, rel_pose, self.device)
 
         return heatmap1, heatmap2
         # Loss Function.
@@ -206,8 +205,8 @@ if __name__ == "__main__":
     train_seqs = ['rgbd_dataset_freiburg1_desk',
                     'rgbd_dataset_freiburg1_room',
                     'rgbd_dataset_freiburg3_long_office_household']
-    loader = TUMDataloader(train_seqs,'/zfsauton2/home/mayankgu/Geom/PyTorch/SuperPose/datasets/TUM_RGBD/')
-    #loader = TUMDataloader(train_seqs,'/usr0/yi-tinglin/SuperpointPose/datasets/TUM_RGBD/')
+    #loader = TUMDataloader(train_seqs,'/zfsauton2/home/mayankgu/Geom/PyTorch/SuperPose/datasets/TUM_RGBD/')
+    loader = TUMDataloader(train_seqs,'/usr0/yi-tinglin/SuperpointPose/datasets/TUM_RGBD/')
     
     #H = 120
     #W = 160
@@ -218,8 +217,8 @@ if __name__ == "__main__":
     gray1, gray2, depth1, depth2, rel_pose = loader.__getitem__(5)
 
     model = PoseEstimation()
-    hm1, hm2 = model.forward(gray1, gray2)
-    print(hm1.shape, hm2.shape)
+    hm1, hm2 = model.forward(gray1, gray2, depth1, depth2, rel_pose)
+    #print(hm1.shape, hm2.shape)
 
     from torchvision.utils import save_image
 
