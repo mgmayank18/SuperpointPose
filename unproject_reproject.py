@@ -61,7 +61,7 @@ def unproject_loss(pts, hm1, hm2, depth1, depth2, rel_pose, device):
     Z_ = torch.mul(hm1, depth1)
     Z = Z_[xs, ys]
     X = (xs - centerX) * Z / focalLength
-    Y = (ys - centerY) * Z / focalLength
+    Y = (ys - centerY) * Z / focalLenugth
     vec_org = torch.stack((X,Y,Z, torch.ones(Z.size()).to(device)), dim=1).type(torch.float64) #May need to change dim to make it 4XN
     vec_org = vec_org.permute(1,0)
     import pdb; pdb.set_trace()
