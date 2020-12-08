@@ -4,6 +4,8 @@ from torch.utils.data import Dataset
 import cv2
 import numpy as np
 from utils import get_left_in_right_pose_quat
+from PIL import Image
+
 class TUMDataloader(Dataset):
     def __init__(self, sequences, root_dir):
         self.root_dir = root_dir
@@ -22,7 +24,7 @@ class TUMDataloader(Dataset):
             gt_list = read_file_list(gt_path)
 
             matches_rgb_depth = dict(associate(rgb_list, depth_list, 0.0, 0.02))
-            matches_rgb_pose = dict(associate(rgb_list, gt_list, 0.0, 0.2))
+            matches_rgb_pose = dict(associate(rgb_list, gt_list, 0.0, 0.02))
 
             self.sequences.append((folder, matches_rgb_depth, matches_rgb_pose, gt_list))
             x = list(matches_rgb_depth.keys())
@@ -41,6 +43,12 @@ class TUMDataloader(Dataset):
             input_image = cv2.cvtColor(input_image, cv2.COLOR_RGB2GRAY)
             input_image = input_image.astype('float32') / 255.0
             return input_image
+    
+    def _read_depth(self, folder, filename, rgbd):
+        path = os.path.join(self.root_dir, folder, rgbd, filename+'.png')
+        depth = Image.open(path)
+        depth = np.array(depth.getdata()).reshape(480, 640)
+        return depth
 
     def get_intrinsics(self, int):
         K1 = np.array([[]])
@@ -62,15 +70,15 @@ class TUMDataloader(Dataset):
         rgb1, rgb2, depth1, depth2  = key_1, key_2, matches[key_1], matches[key_2]
         im1 = self._read_image(folder, "%.6f"%rgb1, 'rgb')
         im2 = self._read_image(folder, "%.6f"%rgb2, 'rgb')
-        d1 = self._read_image(folder, "%.6f"%depth1, 'depth')
-        d2 = self._read_image(folder, "%.6f"%depth2, 'depth')
+        d1 = self._read_depth(folder, "%.6f"%depth1, 'depth')
+        d2 = self._read_depth(folder, "%.6f"%depth2, 'depth')
         pose1 = gt_data[gt_matches[key_1]]
         pose2 = gt_data[gt_matches[key_2]]
 
         R, t = get_left_in_right_pose_quat(np.array(pose2[3:]).astype(float), np.expand_dims(np.array(pose2[:3]),0).astype(float), np.array(pose1[3:]).astype(float), np.expand_dims(np.array(pose1[:3]),0).astype(float))
         
         rel_pose = np.hstack((R,t.T))
-        return im1, im2, d1, d2, rel_pose
+        return im1, im2, d1, d2, rel_pose, folder
 
 if __name__ == "__main__":
     train_seqs = ['rgbd_dataset_freiburg1_desk',

@@ -47,42 +47,39 @@ def unprojection_reprojection(img1, img2, depth1, depth2, rel_pose):
 #def visualize_img
 
 def unproject_loss(pts, hm1, hm2, depth1, depth2, rel_pose, device):
-    focalLength = torch.tensor(525.0).to(device)
-    centerX = torch.tensor(319.5).to(device)
-    centerY = torch.tensor(239.5).to(device)
-    scalingFactor = torch.tensor(1.0).to(device)
+    focalLengthX = torch.tensor(535.4).to(device)
+    focalLengthY = torch.tensor(539.2).to(device)
+    centerX = torch.tensor(320.1).to(device)
+    centerY = torch.tensor(247.6).to(device)
+    scalingFactor = torch.tensor(5000.0).to(device)
     
+    #FR1 : 517.3	516.5	318.6	255.3
+    #FR3 : 535.4	539.2	320.1	247.6
+
     ys = pts[0, :].type(torch.long).to(device)
     xs = pts[1, :].type(torch.long).to(device)
     depth1 = torch.from_numpy(depth1).to(device)
     rel_pose = invertRT(rel_pose)
     rel_pose = torch.from_numpy(rel_pose).to(device)
-    #import pdb; pdb.set_trace()
-    Z_ = torch.mul(hm1, depth1)
-    Z = Z_[ys, xs]
-    X = (xs - centerX) * Z / focalLength
-    Y = (ys - centerY) * Z / focalLength
+    
+    Z = depth1[ys, xs] / scalingFactor
+    X = (xs - centerX) * Z / focalLengthX
+    Y = (ys - centerY) * Z / focalLengthY
     vec_org = torch.stack((X,Y,Z, torch.ones(Z.size()).to(device)), dim=1).type(torch.float64) #May need to change dim to make it 4XN
     vec_org = vec_org.permute(1,0)
-
     
     vec_transf = torch.mm(rel_pose, vec_org)
     X1, Y1, Z1 = vec_transf[0,:], vec_transf[1,:], vec_transf[2,:]
+    print(X1, Y1, Z1)
 
-    # Need to enforce check that Z1 is not 0
+    u_1 = X1 * focalLengthX / (Z1 + 0.000000001) + centerX
+    v_1 = Y1 * focalLengthY / (Z1 + 0.000000001) + centerY
 
-    u_1 = X1 * focalLength / (Z1) + centerX
-    v_1 = Y1 * focalLength / (Z1) + centerY
-
-    mask_1 = (u_1 < 640)
-    mask_2 = (v_1 < 480)
+    mask_1 = (u_1 < 639.5)
+    mask_2 = (v_1 < 479.5)
     mask_3 = (u_1 >= 0)
     mask_4 = (v_1 >= 0)
 
-    print(min(xs), max(xs))
-    print(min(ys), max(ys))
-    print(min(u_1), max(u_1))
-    print(min(v_1), max(v_1))
     ys_GT, xs_GT = torch.where(hm2 >= 0.015)
     #print(min(xs_GT), max(xs_GT))
     #print(min(ys_GT), max(ys_GT))
@@ -91,15 +88,16 @@ def unproject_loss(pts, hm1, hm2, depth1, depth2, rel_pose, device):
     orig_xs = xs[mask]
     orig_ys = ys[mask]
     
+
     orig_hms = hm1[orig_ys, orig_xs]
     targets = hm2[torch.round(v_1[mask]).type(orig_xs.dtype), torch.round(u_1[mask]).type(orig_xs.dtype)] # <- This line takes time, for some reason.
-    print(orig_hms, targets)
 
-    canvas = torch.tensor(hm2.shape)
-    canvas[torch.round(v_1[mask]).type(orig_xs.dtype), torch.round(u_1[mask]).type(orig_xs.dtype)] = targets
+    canvas = torch.zeros(hm2.shape)
+    canvas[torch.round(v_1[mask]).type(orig_xs.dtype), torch.round(u_1[mask]).type(orig_xs.dtype)] = 1
     from torchvision.utils import save_image
+    from pose_estimation import overlap_hm
     save_image(canvas, 'rotatedhm.png')
-    
+    save_image(torch.tensor(overlap_hm(canvas, (hm2 > 0.015))), 'rotatedhm_overlap.png')
     #Loss(orig_hms, targets)
     
 

@@ -52,13 +52,14 @@ class PoseEstimation():
         """
 
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        #device = torch.device('cpu')
         trunk = SuperPointNet()
         trunk = trunk.to(device)
 
         weights = torch.load('pretrained/superpoint_v1.pth')
         trunk.load_state_dict(weights)
 
-        self.trunk = trunk.cuda()
+        self.trunk = trunk.to(device)
         self.trunk_freeze()
         self.cell = 8
         self.conf_thresh = 0.015
@@ -196,9 +197,9 @@ class PoseEstimation():
         #GT - Relative Pose between rgb1 and rgb2
     #def project_hm(self, hm, R, t):
 
-def overlap_hm(img, hm):
+def overlap_hm(img, hm, x=0.5, y=0.5):
     hm = hm.data.cpu().numpy().squeeze()
-    fin = cv2.addWeighted(hm, 0.5, img, 0.5, 0)
+    fin = cv2.addWeighted(np.array(hm).astype(float), x, np.array(img).astype(float), y, 0)
     return fin
 
 if __name__ == "__main__":
@@ -214,8 +215,8 @@ if __name__ == "__main__":
     #path2 = 'icl_snippet/254.png'
     #gray1 = read_image(path1, (H, W))
     #gray2 = read_image(path2, (H, W))
-    gray1, gray2, depth1, depth2, rel_pose = loader.__getitem__(5)
-
+    gray1, gray2, depth1, depth2, rel_pose, folder = loader.__getitem__(2100)
+    print(folder)
     model = PoseEstimation()
     hm1, hm2 = model.forward(gray1, gray2, depth1, depth2, rel_pose)
     #print(hm1.shape, hm2.shape)
@@ -225,8 +226,10 @@ if __name__ == "__main__":
     save_image(hm2, 'hm2.png')
     save_image(torch.tensor(gray1), 'gray1.png')
     save_image(torch.tensor(gray2), 'gray2.png')
-    save_image(torch.tensor(overlap_hm(gray1, hm1)), 'overlap1.png')
-    save_image(torch.tensor(overlap_hm(gray2, hm2)), 'overlap2.png')
+    save_image(torch.tensor(depth1), 'depth1.png')
+    save_image(torch.tensor(depth2), 'depth2.png')
+    save_image(torch.tensor(overlap_hm(gray1, (hm1 > 0.015))), 'overlap1.png')
+    save_image(torch.tensor(overlap_hm(gray2, (hm2 > 0.015))), 'overlap2.png')
     save_image(torch.tensor(overlap_hm(hm1.data.cpu().numpy().squeeze(), hm2)), 'hm_over_hm.png')
     from unproject_reproject import unprojection_reprojection
     #unprojection_reprojection(gray1, gray2, depth1, depth2, rel_pose)
