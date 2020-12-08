@@ -96,6 +96,7 @@ def unproject_loss(pts, hm1, hm2, depth1, depth2, rel_pose, device):
     print(orig_hms, targets)
 
     canvas = torch.tensor(hm2.shape)
+    import pdb; pdb.set_trace()
     canvas[torch.round(v_1[mask]).type(orig_xs.dtype), torch.round(u_1[mask]).type(orig_xs.dtype)] = targets
     from torchvision.utils import save_image
     save_image(canvas, 'rotatedhm.png')
