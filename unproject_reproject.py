@@ -98,7 +98,8 @@ def unproject_loss(pts, hm1, hm2, depth1, depth2, rel_pose, device):
     from pose_estimation import overlap_hm
     save_image(canvas, 'rotatedhm.png')
     save_image(torch.tensor(overlap_hm(canvas, (hm2 > 0.015))), 'rotatedhm_overlap.png')
-    #Loss(orig_hms, targets)
+    
+    #Loss(orig_hms, targets) #MSE
     
 
 

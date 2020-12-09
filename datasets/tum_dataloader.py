@@ -6,7 +6,7 @@ import numpy as np
 from utils import get_left_in_right_pose_quat
 from PIL import Image
 
-class TUMDataloader(Dataset):
+class TUMDataset(Dataset):
     def __init__(self, sequences, root_dir):
         self.root_dir = root_dir
         self.sequences = []
@@ -59,7 +59,6 @@ class TUMDataloader(Dataset):
         i=0
         ind = idx
         while self.len[i] <= ind:
-            print(self.len[i], idx, ind)
             ind -= self.len[i]
             i+=1
         folder, matches, gt_matches, gt_data = self.sequences[i]
@@ -78,14 +77,14 @@ class TUMDataloader(Dataset):
         R, t = get_left_in_right_pose_quat(np.array(pose2[3:]).astype(float), np.expand_dims(np.array(pose2[:3]),0).astype(float), np.array(pose1[3:]).astype(float), np.expand_dims(np.array(pose1[:3]),0).astype(float))
         
         rel_pose = np.hstack((R,t.T))
-        return im1, im2, d1, d2, rel_pose, folder
+        return np.array(im1), np.array(im2), np.array(d1), np.array(d2), np.array(rel_pose), folder
 
 if __name__ == "__main__":
     train_seqs = ['rgbd_dataset_freiburg1_desk',
                     'rgbd_dataset_freiburg1_room',
                     'rgbd_dataset_freiburg3_long_office_household']
     #loader = TUMDataloader(train_seqs,'/zfsauton2/home/mayankgu/Geom/PyTorch/SuperPose/datasets/TUM_RGBD/')
-    loader = TUMDataloader(train_seqs,'/usr0/yi-tinglin/SuperpointPose/datasets/TUM_RGBD/')
+    loader = TUMDataset(train_seqs,'/usr0/yi-tinglin/SuperpointPose/datasets/TUM_RGBD/')
     
     a,b,c,d,e = loader.__getitem__(5)
     print(e) #RETURNS tx, ty, tz, qx, qy, qz, qw

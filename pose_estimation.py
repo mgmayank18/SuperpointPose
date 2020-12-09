@@ -162,7 +162,7 @@ class PoseEstimation():
     def binarize_heatmap(self, hm): ### If you want to get where the keypoints are in the image, could be used in loss function (?)
         return torch.gt(hm, self.conf_thresh)
 
-    def forward(self, gray_1, gray_2, depth_1, depth_2, rel_pose):
+    def forward(self, gray_1, gray_2, depth_1=None, depth_2=None, rel_pose=None):
         H, W = gray_1.shape[0], gray_1.shape[1]
 
         inp1 = gray1.copy()
@@ -182,8 +182,8 @@ class PoseEstimation():
         heatmap1, pts1 = self.point_decoder(semi1, H, W)
         #key_desc1 = self.get_descriptor_decoder(desc1, H, W, pts1)
         heatmap2, pts2 = self.point_decoder(semi2, H, W)
-        rel_pose_I = np.array([[1,0,0,0],[0,1,0,0],[0,0,1,0]])
-        unproject_loss(pts1, heatmap1, heatmap2, depth1, depth2, rel_pose, self.device)
+        #rel_pose_I = np.array([[1,0,0,0],[0,1,0,0],[0,0,1,0]])
+        #unproject_loss(pts1, heatmap1, heatmap2, depth1, depth2, rel_pose, self.device)
         #unproject_loss(pts1, heatmap1, torch.clone(heatmap1), depth1, depth1, rel_pose_I, self.device)
         return heatmap1, heatmap2
         # Loss Function.
@@ -206,8 +206,8 @@ if __name__ == "__main__":
     train_seqs = ['rgbd_dataset_freiburg1_desk',
                     'rgbd_dataset_freiburg1_room',
                     'rgbd_dataset_freiburg3_long_office_household']
-    loader = TUMDataloader(train_seqs,'/zfsauton2/home/mayankgu/Geom/PyTorch/SuperPose/datasets/TUM_RGBD/')
-    #loader = TUMDataloader(train_seqs,'/usr0/yi-tinglin/SuperpointPose/datasets/TUM_RGBD/')
+    loader = TUMDataset(train_seqs,'/zfsauton2/home/mayankgu/Geom/PyTorch/SuperPose/datasets/TUM_RGBD/')
+    #loader = TUMDataset(train_seqs,'/usr0/yi-tinglin/SuperpointPose/datasets/TUM_RGBD/')
     
     #H = 120
     #W = 160
@@ -235,5 +235,3 @@ if __name__ == "__main__":
     #unprojection_reprojection(gray1, gray2, depth1, depth2, rel_pose)
     #
     #unproject_loss(gray1, gray1, depth1, depth1, rel_pose_I)
-
-        
