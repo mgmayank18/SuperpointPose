@@ -78,7 +78,28 @@ class TUMDataloader(Dataset):
         R, t = get_left_in_right_pose_quat(np.array(pose2[3:]).astype(float), np.expand_dims(np.array(pose2[:3]),0).astype(float), np.array(pose1[3:]).astype(float), np.expand_dims(np.array(pose1[:3]),0).astype(float))
         
         rel_pose = np.hstack((R,t.T))
-        return im1, im2, d1, d2, rel_pose, folder
+
+        if 'freiburg1' in folder:
+            fx, fy, cx, cy =  517.3, 516.5, 318.6, 255.3
+        elif 'freiburg2' in folder:
+            fx, fy, cx, cy =  520.9, 521.0, 325.1, 249.7
+        elif 'freiburg3' in folder:
+            fx, fy, cx, cy =  535.4, 539.2, 320.1, 247.6
+        else:
+            fx, fy, cx, cy = 525.0, 525.0, 319.5, 239.5	
+
+        return {
+                "gray1": im1,
+                "gray2": im2,
+                "depth1": d1, 
+                "depth2": d2, 
+                "rel_pose": rel_pose, 
+                "folder": folder,
+                "fx": fx,
+                "fy": fy,
+                "cx": cx,
+                "cy": cy
+                }
 
 if __name__ == "__main__":
     train_seqs = ['rgbd_dataset_freiburg1_desk',

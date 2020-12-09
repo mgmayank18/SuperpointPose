@@ -162,8 +162,10 @@ class PoseEstimation():
     def binarize_heatmap(self, hm): ### If you want to get where the keypoints are in the image, could be used in loss function (?)
         return torch.gt(hm, self.conf_thresh)
 
-    def forward(self, gray_1, gray_2, depth_1, depth_2, rel_pose):
-        H, W = gray_1.shape[0], gray_1.shape[1]
+    def forward(self, data_dicts):
+        gray1 = data_dicts["gray1"]
+        gray2 = data_dicts["gray2"]
+        H, W = gray1.shape[0], gray1.shape[1]
 
         inp1 = gray1.copy()
         inp1 = (inp1.reshape(1, H, W))
@@ -182,10 +184,9 @@ class PoseEstimation():
         heatmap1, pts1 = self.point_decoder(semi1, H, W)
         #key_desc1 = self.get_descriptor_decoder(desc1, H, W, pts1)
         heatmap2, pts2 = self.point_decoder(semi2, H, W)
-        rel_pose_I = np.array([[1,0,0,0],[0,1,0,0],[0,0,1,0]])
-        unproject_loss(pts1, heatmap1, heatmap2, depth1, depth2, rel_pose, self.device)
+        #unproject_loss(pts1, heatmap1, heatmap2, depth1, depth2, rel_pose, self.device)
         #unproject_loss(pts1, heatmap1, torch.clone(heatmap1), depth1, depth1, rel_pose_I, self.device)
-        return heatmap1, heatmap2
+        return heatmap1, pts1, heatmap2, pts2
         # Loss Function.
         # Consecutive Frames
         # Step 1
@@ -215,10 +216,15 @@ if __name__ == "__main__":
     #path2 = 'icl_snippet/254.png'
     #gray1 = read_image(path1, (H, W))
     #gray2 = read_image(path2, (H, W))
-    gray1, gray2, depth1, depth2, rel_pose, folder = loader.__getitem__(2100)
-    print(folder)
+    data_dicts = loader.__getitem__(2100)
+    
+
+    gray1 = data_dicts['gray1']
+    gray2 = data_dicts['gray2']
+    depth1 = data_dicts['depth1']
+    depth2 = data_dicts['depth2']
     model = PoseEstimation()
-    hm1, hm2 = model.forward(gray1, gray2, depth1, depth2, rel_pose)
+    hm1,pts1, hm2, pts2 = model.forward(data_dicts)
     #print(hm1.shape, hm2.shape)
 
     from torchvision.utils import save_image
