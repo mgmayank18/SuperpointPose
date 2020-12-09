@@ -225,8 +225,10 @@ if __name__ == "__main__":
     depth2 = data_dicts['depth2']
     model = PoseEstimation()
     hm1,pts1, hm2, pts2 = model.forward(data_dicts)
-    #print(hm1.shape, hm2.shape)
 
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    unproject_loss(pts1, hm1, hm2, data_dicts, device)
+    
     from torchvision.utils import save_image
     save_image(hm1, 'hm1.png')
     save_image(hm2, 'hm2.png')

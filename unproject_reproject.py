@@ -46,11 +46,15 @@ def unprojection_reprojection(img1, img2, depth1, depth2, rel_pose):
 
 #def visualize_img
 
-def unproject_loss(pts, hm1, hm2, depth1, depth2, rel_pose, device):
-    focalLengthX = torch.tensor(535.4).to(device)
-    focalLengthY = torch.tensor(539.2).to(device)
-    centerX = torch.tensor(320.1).to(device)
-    centerY = torch.tensor(247.6).to(device)
+def unproject_loss(pts, hm1, hm2, data_dict, device):
+    depth1 = data_dict['depth1']
+    depth2 = data_dict['depth2']
+    rel_pose = data_dict['rel_pose']
+
+    focalLengthX = torch.tensor(data_dict['fx']).to(device)
+    focalLengthY = torch.tensor(data_dict['fy']).to(device)
+    centerX = torch.tensor(data_dict['cx']).to(device)
+    centerY = torch.tensor(data_dict['cy']).to(device)
     scalingFactor = torch.tensor(5000.0).to(device)
     
     #FR1 : 517.3	516.5	318.6	255.3
@@ -70,7 +74,7 @@ def unproject_loss(pts, hm1, hm2, depth1, depth2, rel_pose, device):
     
     vec_transf = torch.mm(rel_pose, vec_org)
     X1, Y1, Z1 = vec_transf[0,:], vec_transf[1,:], vec_transf[2,:]
-    print(X1, Y1, Z1)
+    #print(X1, Y1, Z1)
 
     u_1 = X1 * focalLengthX / (Z1 + 0.000000001) + centerX
     v_1 = Y1 * focalLengthY / (Z1 + 0.000000001) + centerY
@@ -95,12 +99,17 @@ def unproject_loss(pts, hm1, hm2, depth1, depth2, rel_pose, device):
 
     canvas = torch.zeros(hm2.shape)
     canvas[torch.round(v_1[mask]).type(orig_xs.dtype), torch.round(u_1[mask]).type(orig_xs.dtype)] = 1
-
+    '''
     from torchvision.utils import save_image
     from pose_estimation import overlap_hm
     save_image(canvas, 'rotatedhm.png')
     save_image(torch.tensor(overlap_hm(canvas, (hm2 > 0.015))), 'rotatedhm_overlap.png')
+    '''
     #Loss(orig_hms, targets)
+    loss_fuction = torch.nn.MSELoss(reduction='mean')
+    loss = loss_fuction(orig_hms, targets)
+  
+    return loss
     
 
 
