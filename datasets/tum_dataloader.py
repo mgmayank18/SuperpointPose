@@ -48,7 +48,8 @@ class TUMDataset(Dataset):
         path = os.path.join(self.root_dir, folder, rgbd, filename+'.png')
         depth = Image.open(path)
         depth = np.array(depth.getdata()).reshape(480, 640)
-        return depth
+        #depth /= 5000.0
+        return depth / 5000
 
     def get_intrinsics(self, int):
         K1 = np.array([[]])

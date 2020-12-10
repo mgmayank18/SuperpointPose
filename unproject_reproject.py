@@ -55,7 +55,7 @@ def unproject_loss(pts, hm1, hm2, data_dict, device, visualize=False):
     focalLengthY = torch.tensor(data_dict['fy']).to(device)
     centerX = torch.tensor(data_dict['cx']).to(device)
     centerY = torch.tensor(data_dict['cy']).to(device)
-    scalingFactor = torch.tensor(5000.0).to(device)
+    #scalingFactor = torch.tensor(5000.0).to(device)
     
     #FR1 : 517.3	516.5	318.6	255.3
     #FR3 : 535.4	539.2	320.1	247.6
@@ -66,7 +66,8 @@ def unproject_loss(pts, hm1, hm2, data_dict, device, visualize=False):
     rel_pose = invertRT(rel_pose)
     rel_pose = torch.from_numpy(rel_pose).to(device)
     
-    Z = depth1[ys, xs] / scalingFactor
+    #Z = depth1[ys, xs] / scalingFactor
+    Z = depth1[ys, xs]
     X = (xs - centerX) * Z / focalLengthX
     Y = (ys - centerY) * Z / focalLengthY
     vec_org = torch.stack((X,Y,Z, torch.ones(Z.size()).to(device)), dim=1).type(torch.float64) #May need to change dim to make it 4XN
