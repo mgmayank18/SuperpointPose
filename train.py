@@ -17,6 +17,7 @@ from datasets.tum_dataloader import TUMDataset
 from torch.utils.data import DataLoader, random_split
 
 from pose_estimation import PoseEstimation
+from torchsummary import summary
 
 dir_img = 'data/imgs/'
 dir_mask = 'data/masks/'
@@ -31,7 +32,7 @@ root_dir = '/zfsauton2/home/mayankgu/Geom/PyTorch/SuperPose/datasets/TUM_RGBD/'
 def train_net(net,
               device,
               epochs=10,
-              batch_size=64,
+              batch_size=1,
               lr=0.001,
               val_percent=0.1,
               save_cp=True,
@@ -49,8 +50,6 @@ def train_net(net,
     writer = SummaryWriter(comment=f'LR_{lr}_BS_{batch_size}_SCALE_{img_scale}')
     global_step = 0
 
-    Superpoint_model = PoseEstimation()
-    
     logging.info(f'''Starting training:
         Epochs:          {epochs}
         Batch size:      {batch_size}
@@ -70,13 +69,26 @@ def train_net(net,
     else:
         criterion = nn.MSELoss()
 
+    Superpoint_model = PoseEstimation()
+
     for epoch in range(epochs):
         net.train()
 
         epoch_loss = 0
         with tqdm(total=n_train, desc=f'Epoch {epoch + 1}/{epochs}', unit='img') as pbar:
             for batch in train_loader:
-                im1, im2, d1, d2, rel_pose, folder = batch
+                im1 = batch["gray1"]
+                im2 = batch["gray2"]
+                d1 = batch["depth1"]
+                d2 = batch["depth2"]
+                print(im1.shape, im2.shape, d1.shape, d2.shape)
+                hm1, kp1, hm2, kp2 = Superpoint_model.forward(im1, im2)
+
+                fx = batch["fx"]
+                fy = batch["fy"]
+                cx = batch["cx"]
+                cy = batch["cy"]
+                
                 assert imgs.shape[1] == net.n_channels, \
                     f'Network has been defined with {net.n_channels} input channels, ' \
                     f'but loaded images have {imgs.shape[1]} channels. Please check that ' \
@@ -166,6 +178,7 @@ if __name__ == '__main__':
     #   - For 2 classes, use n_classes=1
     #   - For N > 2 classes, use n_classes=N
     net = UNet(n_channels=6, n_classes=1, bilinear=True)
+
     logging.info(f'Network:\n'
                  f'\t{net.n_channels} input channels\n'
                  f'\t{net.n_classes} output channels (classes)\n'

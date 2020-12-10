@@ -7,6 +7,7 @@ from datasets.tum_dataloader import TUMDataset
 from unproject_reproject import unproject_loss
 import copy
 from torch.utils.data import Dataset, DataLoader
+from torchsummary import summary
 
 def read_image(impath, img_size):
     """ Read image as grayscale and resize to img_size.
@@ -56,7 +57,7 @@ class PoseEstimation():
         #device = torch.device('cpu')
         trunk = SuperPointNet()
         trunk = trunk.to(device)
-
+        #summary(trunk, (1,640,480))
         weights = torch.load('pretrained/superpoint_v1.pth')
         trunk.load_state_dict(weights)
 
@@ -201,8 +202,8 @@ if __name__ == "__main__":
                     'rgbd_dataset_freiburg3_long_office_household']
 
 
-    #loader = TUMDataset(train_seqs,'/zfsauton2/home/mayankgu/Geom/PyTorch/SuperPose/datasets/TUM_RGBD/')
-    dataset = TUMDataset(train_seqs,'/usr0/yi-tinglin/SuperpointPose/datasets/TUM_RGBD/')
+    dataset = TUMDataset(train_seqs,'/zfsauton2/home/mayankgu/Geom/PyTorch/SuperPose/datasets/TUM_RGBD/')
+    #dataset = TUMDataset(train_seqs,'/usr0/yi-tinglin/SuperpointPose/datasets/TUM_RGBD/')
     #loader = DataLoader(dataset, batch_size=2, shuffle=False, num_workers=4)
     #H = 120
     #W = 160
