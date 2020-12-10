@@ -46,7 +46,7 @@ def unprojection_reprojection(img1, img2, depth1, depth2, rel_pose):
 
 #def visualize_img
 
-def unproject_loss(pts, hm1, hm2, data_dict, device):
+def unproject_loss(pts, hm1, hm2, data_dict, device, visualize=False):
     depth1 = data_dict['depth1']
     depth2 = data_dict['depth2']
     rel_pose = data_dict['rel_pose']
@@ -74,7 +74,6 @@ def unproject_loss(pts, hm1, hm2, data_dict, device):
     
     vec_transf = torch.mm(rel_pose, vec_org)
     X1, Y1, Z1 = vec_transf[0,:], vec_transf[1,:], vec_transf[2,:]
-    #print(X1, Y1, Z1)
 
     u_1 = X1 * focalLengthX / (Z1 + 0.000000001) + centerX
     v_1 = Y1 * focalLengthY / (Z1 + 0.000000001) + centerY
@@ -85,8 +84,6 @@ def unproject_loss(pts, hm1, hm2, data_dict, device):
     mask_4 = (v_1 >= 0)
 
     ys_GT, xs_GT = torch.where(hm2 >= 0.015)
-    #print(min(xs_GT), max(xs_GT))
-    #print(min(ys_GT), max(ys_GT))
     mask = mask_1 * mask_2 * mask_3 * mask_4
 
     orig_xs = xs[mask]
@@ -96,16 +93,16 @@ def unproject_loss(pts, hm1, hm2, data_dict, device):
     orig_hms = hm1[orig_ys, orig_xs]
     targets = hm2[torch.round(v_1[mask]).type(orig_xs.dtype), torch.round(u_1[mask]).type(orig_xs.dtype)] # <- This line takes time, for some reason.
 
+    if visualize:
+        canvas = torch.zeros(hm2.shape)
+        canvas[torch.round(v_1[mask]).type(orig_xs.dtype), torch.round(u_1[mask]).type(orig_xs.dtype)] = 1
+    
+        from torchvision.utils import save_image
+        from pose_estimation import overlap_hm
+        save_image(canvas, 'rotatedhm.png')
+        save_image(torch.tensor(overlap_hm(canvas, (hm2 > 0.015))), 'rotatedhm_overlap.png')
+    
 
-    canvas = torch.zeros(hm2.shape)
-    canvas[torch.round(v_1[mask]).type(orig_xs.dtype), torch.round(u_1[mask]).type(orig_xs.dtype)] = 1
-    '''
-    from torchvision.utils import save_image
-    from pose_estimation import overlap_hm
-    save_image(canvas, 'rotatedhm.png')
-    save_image(torch.tensor(overlap_hm(canvas, (hm2 > 0.015))), 'rotatedhm_overlap.png')
-    '''
-    #Loss(orig_hms, targets)
     loss_fuction = torch.nn.MSELoss(reduction='mean')
     loss = loss_fuction(orig_hms, targets)
   

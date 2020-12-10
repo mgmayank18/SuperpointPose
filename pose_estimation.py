@@ -6,6 +6,7 @@ import numpy as np
 from datasets.tum_dataloader import TUMDataset
 from unproject_reproject import unproject_loss
 import copy
+from torch.utils.data import Dataset, DataLoader
 
 def read_image(impath, img_size):
     """ Read image as grayscale and resize to img_size.
@@ -163,42 +164,31 @@ class PoseEstimation():
         return torch.gt(hm, self.conf_thresh)
 
 
-    def forward(self, data_dicts):
-        gray1 = data_dicts["gray1"]
-        gray2 = data_dicts["gray2"]
-        H, W = gray1.shape[0], gray1.shape[1]
+    def forward(self, gray1, gray2):
+        # gray1 & gray2 (B, H, W)
+        #gray1 = data_dicts["gray1"]
+        #gray2 = data_dicts["gray2"]
+        B, H, W = gray1.shape
 
-        inp1 = gray1.copy()
-        inp1 = (inp1.reshape(1, H, W))
-        inp1 = torch.from_numpy(inp1)
-        inp1 = torch.autograd.Variable(inp1).view(1, 1, H, W).to(self.device)
+        #inp1 = gray1.copy()
+        #inp1 = (inp1.reshape(1, H, W))
+        #inp1 = torch.from_numpy(gray1)
+        inp1 = torch.autograd.Variable(gray1).view(B, 1, H, W).to(self.device)
 
-        inp2 = gray2.copy()
-        inp2 = (inp2.reshape(1, H, W))
-        inp2 = torch.from_numpy(inp2)
-        inp2 = torch.autograd.Variable(inp2).view(1, 1, H, W).to(self.device)
+        #inp2 = gray2.copy()
+        #inp2 = (inp2.reshape(1, H, W))
+        #inp2 = torch.from_numpy(gray2)
+        inp2 = torch.autograd.Variable(gray2).view(B, 1, H, W).to(self.device)
 
+        # input of the super point should be [B, 1, H, W]
+        # outputs: semi (N x 65 x H/8 x W/8)  desc (N x 256 x H/8 x W/8)
         semi1, desc1 = self.trunk(inp1)
         semi2, desc2 = self.trunk(inp2)
-        #import pdb; pdb.set_trace()
        
         heatmap1, pts1 = self.point_decoder(semi1, H, W)
-        #key_desc1 = self.get_descriptor_decoder(desc1, H, W, pts1)
         heatmap2, pts2 = self.point_decoder(semi2, H, W)
 
-        #unproject_loss(pts1, heatmap1, heatmap2, depth1, depth2, rel_pose, self.device)
-        #unproject_loss(pts1, heatmap1, torch.clone(heatmap1), depth1, depth1, rel_pose_I, self.device)
         return heatmap1, pts1, heatmap2, pts2
-        # Loss Function.
-        # Consecutive Frames
-        # Step 1
-        # NETWORK(RGB1 (HxW), RGB2 (HxW), semi1 (HxW), semi2 (HXW), desc1 (H/8, W/8), desc2, depth1 (HxW), depth2) -> R,t
-        # loss_function -> Actual R,t labels
-        
-        # Step 2
-        # Feedback Loop
-        #GT - Relative Pose between rgb1 and rgb2
-    #def project_hm(self, hm, R, t):
 
 def overlap_hm(img, hm, x=0.5, y=0.5):
     hm = hm.data.cpu().numpy().squeeze()
@@ -212,26 +202,36 @@ if __name__ == "__main__":
 
 
     #loader = TUMDataset(train_seqs,'/zfsauton2/home/mayankgu/Geom/PyTorch/SuperPose/datasets/TUM_RGBD/')
-    loader = TUMDataset(train_seqs,'/usr0/yi-tinglin/SuperpointPose/datasets/TUM_RGBD/')
- 
+    dataset = TUMDataset(train_seqs,'/usr0/yi-tinglin/SuperpointPose/datasets/TUM_RGBD/')
+    #loader = DataLoader(dataset, batch_size=2, shuffle=False, num_workers=4)
     #H = 120
     #W = 160
     #path1 = 'icl_snippet/250.png'
     #path2 = 'icl_snippet/254.png'
     #gray1 = read_image(path1, (H, W))
     #gray2 = read_image(path2, (H, W))
-    data_dicts = loader.__getitem__(2100)
+    
+    data_dicts = dataset.__getitem__(2100)
     
 
     gray1 = data_dicts['gray1']
     gray2 = data_dicts['gray2']
     depth1 = data_dicts['depth1']
     depth2 = data_dicts['depth2']
+    rel_pose = data_dicts['rel_pose']
     model = PoseEstimation()
-    hm1,pts1, hm2, pts2 = model.forward(data_dicts)
+
+    H, W = gray1.shape
+    gray1_batch = gray1.copy()
+    gray1_batch = gray1_batch.reshape(1, H, W)
+    gray1_batch = torch.from_numpy(gray1_batch)
+    gray2_batch = gray2.copy()
+    gray2_batch = gray2_batch.reshape(1, H, W)
+    gray2_batch = torch.from_numpy(gray2_batch)
+    hm1,pts1, hm2, pts2 = model.forward(gray1_batch, gray2_batch)
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    unproject_loss(pts1, hm1, hm2, data_dicts, device)
+    unproject_loss(pts1, hm1, hm2, data_dicts, device, visualize=True)
     
     from torchvision.utils import save_image
     save_image(hm1, 'hm1.png')
@@ -243,7 +243,4 @@ if __name__ == "__main__":
     save_image(torch.tensor(overlap_hm(gray1, (hm1 > 0.015))), 'overlap1.png')
     save_image(torch.tensor(overlap_hm(gray2, (hm2 > 0.015))), 'overlap2.png')
     save_image(torch.tensor(overlap_hm(hm1.data.cpu().numpy().squeeze(), hm2)), 'hm_over_hm.png')
-    from unproject_reproject import unprojection_reprojection
-    #unprojection_reprojection(gray1, gray2, depth1, depth2, rel_pose)
-    #
-    #unproject_loss(gray1, gray1, depth1, depth1, rel_pose_I)
+  
