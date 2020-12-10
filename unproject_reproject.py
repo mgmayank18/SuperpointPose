@@ -1,6 +1,6 @@
 from scipy.spatial.transform import Rotation
 import numpy as np
-from datasets.tum_dataloader import TUMDataloader
+from datasets.tum_dataloader import TUMDataset
 import torch
 
 import pdb; st = pdb.set_trace
@@ -110,15 +110,15 @@ def unproject_loss(pts, hm1, hm2, data_dict, device):
     loss = loss_fuction(orig_hms, targets)
   
     return loss
-    
+
 
 
 if __name__ == "__main__":
     train_seqs = ['rgbd_dataset_freiburg1_desk',
                     'rgbd_dataset_freiburg1_room',
                     'rgbd_dataset_freiburg3_long_office_household']
-    #loader = TUMDataloader(train_seqs,'/zfsauton2/home/mayankgu/Geom/PyTorch/SuperPose/datasets/TUM_RGBD/')
-    loader = TUMDataloader(train_seqs,'/usr0/yi-tinglin/SuperpointPose/datasets/TUM_RGBD/')
+    #loader = TUMDataset(train_seqs,'/zfsauton2/home/mayankgu/Geom/PyTorch/SuperPose/datasets/TUM_RGBD/')
+    loader = TUMDataset(train_seqs,'/usr0/yi-tinglin/SuperpointPose/datasets/TUM_RGBD/')
     gray1, gray2, depth1, depth2, rel_pose = loader.__getitem__(5)
 
     unprojection_reprojection(gray1, gray2, depth1, depth2, rel_pose)
