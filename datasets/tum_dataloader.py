@@ -24,7 +24,7 @@ class TUMDataset(Dataset):
             gt_list = read_file_list(gt_path)
 
             matches_rgb_depth = dict(associate(rgb_list, depth_list, 0.0, 0.02))
-            matches_rgb_pose = dict(associate(rgb_list, gt_list, 0.0, 0.02))
+            matches_rgb_pose = dict(associate(rgb_list, gt_list, 0.0, 0.2))
 
             self.sequences.append((folder, matches_rgb_depth, matches_rgb_pose, gt_list))
             x = list(matches_rgb_depth.keys())

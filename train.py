@@ -13,11 +13,13 @@ from tqdm import tqdm
 from unet import UNet
 
 from tensorboardX import SummaryWriter
+from unproject_reproject import unproject_loss
 from datasets.tum_dataloader import TUMDataset
 from torch.utils.data import DataLoader, random_split
 
 from pose_estimation import PoseEstimation
 from torchsummary import summary
+from eval_net import eval_net, CustomMSELoss
 
 dir_img = 'data/imgs/'
 dir_mask = 'data/masks/'
@@ -27,8 +29,9 @@ train_seqs = ['rgbd_dataset_freiburg1_desk',
                     'rgbd_dataset_freiburg1_room',
                     'rgbd_dataset_freiburg3_long_office_household']
 
-#root_dir = '/zfsauton2/home/mayankgu/Geom/PyTorch/SuperPose/datasets/TUM_RGBD/'
-root_dir = '/usr0/yi-tinglin/SuperpointPose/datasets/TUM_RGBD/'
+root_dir = '/zfsauton2/home/mayankgu/Geom/PyTorch/SuperPose/datasets/TUM_RGBD/'
+#root_dir = '/usr0/yi-tinglin/SuperpointPose/datasets/TUM_RGBD/'
+
 def train_net(net,
               device,
               epochs=10,
@@ -36,7 +39,8 @@ def train_net(net,
               lr=0.001,
               val_percent=0.1,
               save_cp=True,
-              img_scale=0.5):
+              img_scale=0.5,
+              gamma=1):
 
     dataset = TUMDataset(train_seqs, root_dir)
     n_val = int(len(dataset) * val_percent)
@@ -67,7 +71,7 @@ def train_net(net,
     if net.n_classes > 1:
         criterion = nn.CrossEntropyLoss()
     else:
-        criterion = nn.MSELoss()
+        criterion = CustomMSELoss#nn.MSELoss()
 
     Superpoint_model = PoseEstimation()
 
@@ -81,14 +85,22 @@ def train_net(net,
                 im2 = batch["gray2"]
                 d1 = batch["depth1"]
                 d2 = batch["depth2"]
-                print(im1.shape, im2.shape, d1.shape, d2.shape)
-                hm1, kp1, hm2, kp2 = Superpoint_model.forward(im1, im2)
+                
+                hm1, hm2 = Superpoint_model.forward(im1, im2)
 
                 fx = batch["fx"]
                 fy = batch["fy"]
                 cx = batch["cx"]
                 cy = batch["cy"]
                 
+                imgs = torch.cat((torch.unsqueeze(im1,1).to(device),
+                                    torch.unsqueeze(im2,1).to(device),
+                                    torch.unsqueeze(d1,1).to(device),
+                                    torch.unsqueeze(d2,1).to(device),
+                                    torch.unsqueeze(hm1,1).to(device),
+                                    torch.unsqueeze(hm2,1).to(device),
+                                ),1)
+
                 assert imgs.shape[1] == net.n_channels, \
                     f'Network has been defined with {net.n_channels} input channels, ' \
                     f'but loaded images have {imgs.shape[1]} channels. Please check that ' \
@@ -96,10 +108,14 @@ def train_net(net,
 
                 imgs = imgs.to(device=device, dtype=torch.float32)
                 mask_type = torch.float32 if net.n_classes == 1 else torch.long
-                true_masks = true_masks.to(device=device, dtype=mask_type)
+                GT_depth = torch.unsqueeze(d1,1).to(device=device, dtype=mask_type)
 
-                masks_pred = net(imgs)
-                loss = criterion(masks_pred, true_masks)
+                depth_pred = net(imgs)
+                loss = criterion(depth_pred, GT_depth)
+
+                #unproj_loss = unproject_loss(hm1, hm2, batch, device)
+                #loss += gamma * unproj_loss
+
                 epoch_loss += loss.item()
                 writer.add_scalar('Loss/train', loss.item(), global_step)
 
@@ -112,12 +128,12 @@ def train_net(net,
 
                 pbar.update(imgs.shape[0])
                 global_step += 1
-                if global_step % (n_train // (10 * batch_size)) == 0:
+                if global_step % (n_train // (10 * batch_size)) == 0:#######################
                     for tag, value in net.named_parameters():
                         tag = tag.replace('.', '/')
                         writer.add_histogram('weights/' + tag, value.data.cpu().numpy(), global_step)
                         writer.add_histogram('grads/' + tag, value.grad.data.cpu().numpy(), global_step)
-                    val_score = eval_net(net, val_loader, device)
+                    val_score = eval_net(net, val_loader, device, Superpoint_model)
                     scheduler.step(val_score)
                     writer.add_scalar('learning_rate', optimizer.param_groups[0]['lr'], global_step)
 
@@ -125,13 +141,13 @@ def train_net(net,
                         logging.info('Validation cross entropy: {}'.format(val_score))
                         writer.add_scalar('Loss/test', val_score, global_step)
                     else:
-                        logging.info('Validation Dice Coeff: {}'.format(val_score))
-                        writer.add_scalar('Dice/test', val_score, global_step)
+                        logging.info('Validation Loss: {}'.format(val_score))
+                        writer.add_scalar('Loss/test', val_score, global_step)
 
-                    writer.add_images('images', imgs, global_step)
+                    writer.add_images('images', torch.unsqueeze(imgs[:,0,:,:],1), global_step)
                     if net.n_classes == 1:
-                        writer.add_images('masks/true', true_masks, global_step)
-                        writer.add_images('masks/pred', torch.sigmoid(masks_pred) > 0.5, global_step)
+                        writer.add_images('depth/true', GT_depth, global_step)
+                        writer.add_images('depth/pred', depth_pred, global_step)
 
         if save_cp:
             try:
@@ -151,10 +167,12 @@ def get_args():
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('-e', '--epochs', metavar='E', type=int, default=5,
                         help='Number of epochs', dest='epochs')
-    parser.add_argument('-b', '--batch-size', metavar='B', type=int, nargs='?', default=128,
+    parser.add_argument('-b', '--batch-size', metavar='B', type=int, nargs='?', default=8,
                         help='Batch size', dest='batchsize')
     parser.add_argument('-l', '--learning-rate', metavar='LR', type=float, nargs='?', default=0.0001,
                         help='Learning rate', dest='lr')
+    parser.add_argument('-g', '--gamma', metavar='gamma', type=float, nargs='?', default=1,
+                        help='Loss balancing hyper-param', dest='gamma')
     parser.add_argument('-f', '--load', dest='load', type=str, default=False,
                         help='Load model from a .pth file')
     parser.add_argument('-s', '--scale', dest='scale', type=float, default=0.5,
@@ -201,7 +219,8 @@ if __name__ == '__main__':
                   lr=args.lr,
                   device=device,
                   img_scale=args.scale,
-                  val_percent=args.val / 100)
+                  val_percent=args.val / 100,
+                  gamma=args.gamma)
     except KeyboardInterrupt:
         torch.save(net.state_dict(), 'INTERRUPTED.pth')
         logging.info('Saved interrupt')
