@@ -25,6 +25,6 @@ if __name__ == "__main__":
             key_point_loss.backward()
             optimizer.step()
             print(key_point_loss)
-             
+            
 
     #import pdb; pdb.set_trace()

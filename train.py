@@ -27,8 +27,8 @@ train_seqs = ['rgbd_dataset_freiburg1_desk',
                     'rgbd_dataset_freiburg1_room',
                     'rgbd_dataset_freiburg3_long_office_household']
 
-root_dir = '/zfsauton2/home/mayankgu/Geom/PyTorch/SuperPose/datasets/TUM_RGBD/'
-
+#root_dir = '/zfsauton2/home/mayankgu/Geom/PyTorch/SuperPose/datasets/TUM_RGBD/'
+root_dir = '/usr0/yi-tinglin/SuperpointPose/datasets/TUM_RGBD/'
 def train_net(net,
               device,
               epochs=10,
