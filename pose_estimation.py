@@ -249,7 +249,7 @@ if __name__ == "__main__":
     hm1, hm2 = model.forward(gray1_batch, gray2_batch)
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    #unproject_loss(pts1, hm1, hm2, data_dicts, device, visualize=True)
+    unproject_loss(hm1, hm2, data_dicts, device, visualize=True)
     
     from torchvision.utils import save_image
     save_image(hm1, 'hm1.png')
